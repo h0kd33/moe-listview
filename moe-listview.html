@@ -1,0 +1,240 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/iron-image/iron-image.html">
+<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../bower_components/paper-drawer-panel/paper-drawer-panel.html">
+<link rel="import" href="../bower_components/paper-scroll-header-panel/paper-scroll-header-panel.html">
+<link rel="import" href="../bower_components/paper-toolbar/paper-toolbar.html">
+<link rel="import" href="../bower_components/paper-ripple/paper-ripple.html">
+<link rel="import" href="../bower_components/paper-fab/paper-fab.html">
+<link rel="import" href="../moe-style/moe-style.html">
+<link rel="import" href="../moe-paragraph/moe-paragraph.html">
+<link rel="import" href="../moe-data-host/moe-dummy-host.html">
+<dom-module id="moe-listview">
+    <style>
+    :host {
+        display: block;
+        box-sizing: border-box;
+        @apply(--layout);
+        @apply(--layout-vertical);
+    }
+    
+    #listview {
+        @apply(--layout);
+        @apply(--layout-vertical);
+        max-width: 460px;
+        margin: 0 auto;
+    }
+    
+    #article {
+        background: #FFFFEE;
+        margin-bottom: 5px;
+        height: 100px;
+        overflow: hidden;
+        box-shadow: 0 5px 13px rgba(0, 0, 0, 0.1);
+        font-size: 13px;
+        transition: 0.1s ease-in;
+        transition-property: transform;
+    }
+    
+    #article > div {
+        height: 100%;
+    }
+    
+    #article:focus {
+        transform: translateX(-3px);
+    }
+    
+    #image {
+        height: 100%;
+        max-width: 180px;
+    }
+    
+    img[src=""], #image[src=""] {
+        display: none;
+    }
+    
+    #paragraph {
+        padding: 0px 14px;
+        margin: 8px 0 6px 0;
+        overflow: hidden;
+        height: 64px;
+        line-height: 21px;
+        // 16 21
+    }
+    
+    #footer {
+        padding: 0 10px;
+        color: var(--paper-grey-500);
+    }
+    
+    #footer span + span {
+        margin-left: 10px;
+    }
+    
+    #footer #serial::before {
+        content: "No.";
+    }
+    
+    #commentsCount {
+        position: relative;
+        width: 36px;
+        display: flex;
+        font-size: 14px;
+        background: var(--paper-blue-300);
+        color: white;
+        font-family: monospace;
+        box-shadow: inset 10px 0 10px -10px rgba(0, 0, 0, 0.3);
+        text-decoration: none !important;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    #comment {
+        display: table;        
+        font-size: 12px;
+        background-color: var(--comment-color);
+        margin-bottom: 3px;
+        padding: 2px 10px;        
+    }
+    
+    #fav {
+        margin: 5px 0;
+    }
+    
+    #drawerPanel [drawer] {
+        overflow-y: scroll;
+        background-color: var(--background-color);
+    }
+    
+    #drawerArticle img {
+        max-width: 100%;
+        max-height: 50vh;
+        box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        margin: 5px 0;
+    }
+    #commentImage {
+        max-height: 150px;
+        max-width: 150px;
+    }
+    .image-container {       
+        background-color: rgba(0, 0, 0, 0.3);   
+        background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAHElEQVQYV2P4//+/FBbMgI4ZhohCbBhD81BQCAD6ay/4Sj20ZAAAAABJRU5ErkJggg==);
+    }
+    </style>
+    <template>
+        <paper-drawer-panel id="drawerPanel" drawer-width="100vw" responsive-width force-narrow right-drawer disable-edge-swipe>
+            <paper-scroll-header-panel main on-content-scroll="_onScroll">
+                <paper-toolbar></paper-toolbar>
+                <div id="listview">
+                    <template is="dom-repeat" id="articleList" items="{{articles.articles}}">
+                        <!-- <paper-fab id="fav" mini icon="icons:star"></paper-fab> -->
+                        <div id="article" class="layout horizontal" tabindex="4">
+                            <div>
+                                <img id="image" src="[[item.imgSrc]]">
+                            </div>
+                            <div class="flex">
+                                <div id="header"></div>
+                                <moe-paragraph id="paragraph" paragraph="[[item.content]]"></moe-paragraph>
+                                <div id="footer" class="layout horizontal end-justified"><span><a href="#">[[item.boardName]]</a></span><span id="serial">[[item.serial]]</span><span>[[item.username]]</span><span>[[index]]</span></div>
+                            </div>
+                            <a href="#" id="commentsCount" class="layout vertical center-center" on-click="report">
+                                <div>[[_commentCounts(item.comments)]]</div>
+                                <paper-ripple></paper-ripple>
+                            </a>
+                        </div>
+                        <!-- 
+                        <template is="dom-repeat" items="{{item.comments}}" as="comment">
+                            <div id="comment"><span>[[index]]</span>
+                                <moe-paragraph paragraph="[[comment.content]]"></moe-paragraph>
+                            </div>
+                        </template> -->
+                    </template>
+                </div>
+            </paper-scroll-header-panel>
+            <div id="drawer" drawer>
+                <template is="dom-if" if="{{drawerOpened}}">
+                    <div id="drawerArticle" class="layout vertical" tabindex="4">
+                        <div class="image-container layout horizontal flex center-center">
+                            <img src="[[drawerArticle.imgSrc]]">
+                        </div>
+                        <div class="flex">
+                            <div id="header"></div>
+                            <moe-paragraph id="paragraph" paragraph="[[drawerArticle.content]]"></moe-paragraph>
+                            <div id="footer" class="layout horizontal end-justified"><span><a href="#">[[drawerArticle.boardName]]</a></span><span id="serial">[[drawerArticle.serial]]</span><span>[[drawerArticle.username]]</span><span>[[index]]</span></div>
+                        </div>
+                    </div>
+                    <template is="dom-repeat" items="{{drawerArticle.comments}}" as="comment">
+                        <div id="comment"><span>[[index]]</span>
+                            <img class="pull-left" id="commentImage" src="[[comment.imgSrc]]">
+                            <moe-paragraph paragraph="[[comment.content]]"></moe-paragraph>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </paper-drawer-panel>
+        <moe-dummy-host id="dataHost" datas="{{articles}}" auto-start> </moe-dummy-host>
+    </template>
+</dom-module>
+<script>
+Polymer({
+
+    is: 'moe-listview',
+
+    properties: {
+        articles: {
+            type: Array
+        },
+        drawerArticle: Object,
+        drawerOpened: {
+            type: Boolean,
+            value: false,
+            notify: true,
+            reflectToAttribute: true
+        }
+    },
+    listeners: {
+        "drawerPanel.selected-changed": "_clear"
+    },
+    observers: [
+        "updateDatas(articles)"
+    ],
+    drawer: function() {
+        this.$.drawerPanel.selected === "main" ? this.drawerOpened = false : this.drawerOpened = true;
+    },
+    _commentCounts: function(e) {
+        return e.length;
+    },
+    attached: function() {},
+    report: function(e) {
+        this.drawerArticle = e.model.item;
+        this.notifyPath("drawerArticle", e.model.item);
+        this.$.drawerPanel.openDrawer();
+    },
+    _clear: function(e) {
+        this.drawer();
+        if (this.drawerOpend) {
+            this.drawerArticle = undefined;
+            delete this.drawerArticle;
+        }
+    },    
+    // 捲到底部觸發 讀入文章陣列
+    addArticle: function() {
+        // var t = this.$.articleList;        
+        // this.$.dataHost._buildData();
+
+        // t.push('articles', this.articles[0]);
+    },
+
+    // 捲動至下方剩下兩個螢幕高時 載入文章
+    _onScroll: function(e) {
+        var t = this;
+        var docY = e.target.scroller.scrollHeight; // scroll panel height
+        var screenY = window.screen.height; // brower window height
+        var winTop = e.target.scroller.scrollTop; // scroll panel offsetTop position 
+        // console.log(docY + ' | ' + screenY + ' | ' + winTop + ' | ' + (docY - screenY * 2));        
+        if (winTop != 0) {
+            (docY - screenY * 2) <= winTop ? t.addArticle() : false;
+        }
+    }
+});
+</script>
