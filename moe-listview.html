@@ -1,3 +1,4 @@
+<!-- Polymer -->
 <link rel="import" href="../bower_components/polymer/polymer.html">
 <link rel="import" href="../bower_components/iron-image/iron-image.html">
 <link rel="import" href="../bower_components/iron-icons/iron-icons.html">
@@ -5,10 +6,18 @@
 <link rel="import" href="../bower_components/paper-scroll-header-panel/paper-scroll-header-panel.html">
 <link rel="import" href="../bower_components/paper-toolbar/paper-toolbar.html">
 <link rel="import" href="../bower_components/paper-ripple/paper-ripple.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../bower_components/paper-fab/paper-fab.html">
+<!-- Other components -->
+<link rel="import" href="../bower_components/event-infinite-scroll/event-infinite-scroll.html">
+<!-- Moe components -->
 <link rel="import" href="../moe-style/moe-style.html">
 <link rel="import" href="../moe-paragraph/moe-paragraph.html">
 <link rel="import" href="../moe-data-host/moe-dummy-host.html">
+<link rel="import" href="../moe-push-list/moe-push-list.html">
+<link rel="import" href="../moe-comment/moe-comment.html">
+<!-- web font -->
+<link href='http://fonts.googleapis.com/css?family=Cousine' rel='stylesheet' type='text/css'>
 <dom-module id="moe-listview">
     <style>
     :host {
@@ -16,13 +25,46 @@
         box-sizing: border-box;
         @apply(--layout);
         @apply(--layout-vertical);
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        -webkit-touch-callout: none;
     }
     
+    /* Paper-Scroll-Header-Panel Custom Style */
+    /* ************************************** */
+    paper-scroll-header-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background-color: var(--comment-color);
+
+      /* background for toolbar when it is at its full size */
+      --paper-scroll-header-panel-full-header: {
+        background-image: url(images/bg6.jpg);
+        background-color: var(--paper-red-500);
+      };
+
+      /* background for toolbar when it is condensed */
+      --paper-scroll-header-panel-condensed-header: {
+        background-image: url(images/bg2.jpg);
+        background-color: var(--font-color);
+      };
+    }
+
+    paper-toolbar.medium-tall {
+      background-color: transparent;
+    }
+    /* ************************************** */
+
     #listview {
         @apply(--layout);
         @apply(--layout-vertical);
         max-width: 460px;
+        min-height: 150vh;
         margin: 0 auto;
+        padding-top: 10px;
+        padding-bottom: 200px;
     }
     
     #article {
@@ -49,7 +91,8 @@
         max-width: 180px;
     }
     
-    img[src=""], #image[src=""] {
+    img[src=""],
+    #image[src=""] {
         display: none;
     }
     
@@ -73,6 +116,8 @@
     
     #footer #serial::before {
         content: "No.";
+        text-decoration: underline;
+        color: blue;
     }
     
     #commentsCount {
@@ -90,15 +135,11 @@
     }
     
     #comment {
-        display: table;        
+        display: table;
         font-size: 12px;
         background-color: var(--comment-color);
         margin-bottom: 3px;
-        padding: 2px 10px;        
-    }
-    
-    #fav {
-        margin: 5px 0;
+        padding: 2px 10px;
     }
     
     #drawerPanel [drawer] {
@@ -109,48 +150,79 @@
     #drawerArticle img {
         max-width: 100%;
         max-height: 50vh;
-        box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
         margin: 5px 0;
     }
+    
     #commentImage {
         max-height: 150px;
         max-width: 150px;
     }
-    .image-container {       
-        background-color: rgba(0, 0, 0, 0.3);   
+    
+    .image-container {
+        background-color: rgba(0, 0, 0, 0.3);
         background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAHElEQVQYV2P4//+/FBbMgI4ZhohCbBhD81BQCAD6ay/4Sj20ZAAAAABJRU5ErkJggg==);
+    }
+    
+    .label-identity {
+        font-family: 'Cousine', monospace;
+        font-size: xx-small;
+        /* 57.6px / 2 + 20px */
+        
+        width: 50px;
+        word-break: break-all;
+        line-height: 0.85;
+        transform: scale(0.85);
+        float: left;
+    }
+    
+    .label-identity::first-letter {
+        float: left;
+        padding-right: 4px;
+        line-height: 22px;
+        font-size: 22px;
     }
     </style>
     <template>
         <paper-drawer-panel id="drawerPanel" drawer-width="100vw" responsive-width force-narrow right-drawer disable-edge-swipe>
-            <paper-scroll-header-panel main on-content-scroll="_onScroll">
-                <paper-toolbar></paper-toolbar>
+            <!-- Panel:Main -->
+            <paper-scroll-header-panel main on-content-scroll="_onScroll" condenses header-height="256" condensed-header-height="64">
+                <!-- Toolbar -->
+                <paper-toolbar class="medium-tall">
+                    <paper-icon-button icon="arrow-back"></paper-icon-button>
+                    <div class="flex"></div>
+                    <paper-icon-button icon="search"></paper-icon-button>
+                    <paper-icon-button icon="more-vert"></paper-icon-button>
+                    <div class="bottom title">[[articles.boardName]]</div>
+                </paper-toolbar>
+                <!-- Main:Content -->
                 <div id="listview">
-                    <template is="dom-repeat" id="articleList" items="{{articles.articles}}">
-                        <!-- <paper-fab id="fav" mini icon="icons:star"></paper-fab> -->
-                        <div id="article" class="layout horizontal" tabindex="4">
+                    <template is="dom-repeat" id="articleList" filter="lazyFilter" items="{{articles.articles}}">
+                        <div id="article" class="layout horizontal" tabindex="4" >
                             <div>
                                 <img id="image" src="[[item.imgSrc]]">
                             </div>
                             <div class="flex">
                                 <div id="header"></div>
                                 <moe-paragraph id="paragraph" paragraph="[[item.content]]"></moe-paragraph>
-                                <div id="footer" class="layout horizontal end-justified"><span><a href="#">[[item.boardName]]</a></span><span id="serial">[[item.serial]]</span><span>[[item.username]]</span><span>[[index]]</span></div>
+                                <div id="footer" class="layout horizontal end-justified">
+                                    <span id="serial"><a href="#">[[index]]</a></span>
+                                    <span>[[item.user.userName]]</span>
+                                    <span class="flex"><a href="#">[[item.boardName]]</a></span>
+                                    <span class="label-identity">[[item.user.identity]]</span>
+                                </div>
                             </div>
                             <a href="#" id="commentsCount" class="layout vertical center-center" on-click="report">
                                 <div>[[_commentCounts(item.comments)]]</div>
                                 <paper-ripple></paper-ripple>
                             </a>
                         </div>
-                        <!-- 
-                        <template is="dom-repeat" items="{{item.comments}}" as="comment">
-                            <div id="comment"><span>[[index]]</span>
-                                <moe-paragraph paragraph="[[comment.content]]"></moe-paragraph>
-                            </div>
-                        </template> -->
                     </template>
                 </div>
+                <!-- Scroll Event Handle -->
+                <event-infinite-scroll ready-on-start on-reach-bottom="reachedBottom" scroll-denominator="4" loading-delay="1000"></event-infinite-scroll>
             </paper-scroll-header-panel>
+            <!-- Panel:Drawer -->
             <div id="drawer" drawer>
                 <template is="dom-if" if="{{drawerOpened}}">
                     <div id="drawerArticle" class="layout vertical" tabindex="4">
@@ -160,19 +232,21 @@
                         <div class="flex">
                             <div id="header"></div>
                             <moe-paragraph id="paragraph" paragraph="[[drawerArticle.content]]"></moe-paragraph>
-                            <div id="footer" class="layout horizontal end-justified"><span><a href="#">[[drawerArticle.boardName]]</a></span><span id="serial">[[drawerArticle.serial]]</span><span>[[drawerArticle.username]]</span><span>[[index]]</span></div>
+                            <div id="footer" class="layout horizontal end-justified">
+                                <span><a href="#">[[drawerArticle.boardName]]</a>
+                            </span>
+                                <span id="serial">[[drawerArticle.serial]]</span>
+                                <span>[[drawerArticle.user.username]]</span>
+                                <span>[[index]]</span></div>
                         </div>
                     </div>
                     <template is="dom-repeat" items="{{drawerArticle.comments}}" as="comment">
-                        <div id="comment"><span>[[index]]</span>
-                            <img class="pull-left" id="commentImage" src="[[comment.imgSrc]]">
-                            <moe-paragraph paragraph="[[comment.content]]"></moe-paragraph>
-                        </div>
+                        <moe-comment id="comment" datas="[[comment]]"> </moe-comment>
                     </template>
                 </template>
             </div>
         </paper-drawer-panel>
-        <moe-dummy-host id="dataHost" datas="{{articles}}" auto-start> </moe-dummy-host>
+        <moe-dummy-host id="datahost" datas="{{articles}}" auto-start> </moe-dummy-host>
     </template>
 </dom-module>
 <script>
@@ -182,7 +256,7 @@ Polymer({
 
     properties: {
         articles: {
-            type: Array
+            type: Object
         },
         drawerArticle: Object,
         drawerOpened: {
@@ -196,10 +270,34 @@ Polymer({
         "drawerPanel.selected-changed": "_clear"
     },
     observers: [
-        "updateDatas(articles)"
+        "_articlesChanged(articles)"
     ],
+    lazyFilter: function(item) {
+        // lazy loading filter
+        return item.index < this.counter;
+    },
+    _articlesChanged: function() {
+        // 利用 dom-repeat.filter 和 async 非同步 render list
+        this.counter = 3;
+
+        function loop() {
+                this.$.articleList.render();
+                if (this.counter < this.articles.articles.length) {
+                    this.async(loop);
+                    this.counter += 1;
+                    console.log("now: " + this.counter);
+                } else {
+                    this.counter = this.articles.articles.length;
+                }
+
+            }
+            (loop.bind(this))();
+    },
+    reachedBottom: function(e) {
+        this.$.datahost.load
+    },
     drawer: function() {
-        this.$.drawerPanel.selected === "main" ? this.drawerOpened = false : this.drawerOpened = true;
+        return this.$.drawerPanel.selected === "main" ? this.drawerOpened = false : this.drawerOpened = true;
     },
     _commentCounts: function(e) {
         return e.length;
@@ -216,7 +314,7 @@ Polymer({
             this.drawerArticle = undefined;
             delete this.drawerArticle;
         }
-    },    
+    },
     // 捲到底部觸發 讀入文章陣列
     addArticle: function() {
         // var t = this.$.articleList;        
@@ -226,15 +324,18 @@ Polymer({
     },
 
     // 捲動至下方剩下兩個螢幕高時 載入文章
+
     _onScroll: function(e) {
-        var t = this;
-        var docY = e.target.scroller.scrollHeight; // scroll panel height
-        var screenY = window.screen.height; // brower window height
-        var winTop = e.target.scroller.scrollTop; // scroll panel offsetTop position 
-        // console.log(docY + ' | ' + screenY + ' | ' + winTop + ' | ' + (docY - screenY * 2));        
-        if (winTop != 0) {
-            (docY - screenY * 2) <= winTop ? t.addArticle() : false;
+            var t = this;
+            var docY = e.target.scroller.scrollHeight; // scroll panel height
+            var screenY = window.screen.height; // brower window height
+            var winTop = e.target.scroller.scrollTop; // scroll panel offsetTop position 
+            // console.log(docY + ' | ' + screenY + ' | ' + winTop + ' | ' + (docY - screenY * 2));        
+            if (winTop !== 0) {
+                return (docY - screenY * 2) <= winTop ? t.addArticle() : false;
+            }
         }
-    }
+        // 現成 http://chadliu23.github.io/event-infinite-scroll/components/event-infinite-scroll/
+        // http://stackoverflow.com/questions/31164971/infinite-scroll-for-polymer-1-0-without-appending
 });
 </script>
